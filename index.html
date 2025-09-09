@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple API Client</title>
+    <!-- Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-4xl overflow-hidden p-6">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Simple API Client</h1>
+        
+        <!-- Request Section -->
+        <div class="mb-6 bg-gray-50 p-4 rounded-xl border border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Request</h2>
+            <div class="flex flex-col md:flex-row items-stretch md:items-center gap-4 mb-4">
+                <select id="method" class="w-full md:w-32 py-2 px-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200">
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                    <option value="PUT">PUT</option>
+                    <option value="DELETE">DELETE</option>
+                </select>
+                <input type="text" id="url" placeholder="Enter URL here (e.g., https://api.example.com/data)" class="flex-grow py-2 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200">
+            </div>
+            
+            <div class="mb-4">
+                <label for="headers" class="block text-sm font-medium text-gray-700 mb-2">Headers (JSON format)</label>
+                <textarea id="headers" rows="4" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200" placeholder='{ "Content-Type": "application/json" }'></textarea>
+            </div>
+            
+            <div class="mb-4">
+                <label for="body" class="block text-sm font-medium text-gray-700 mb-2">Request Body (JSON format for POST/PUT)</label>
+                <textarea id="body" rows="6" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200" placeholder='{ "key": "value" }'></textarea>
+            </div>
+            
+            <button id="send-button" class="w-full py-3 px-6 bg-indigo-600 text-white font-bold rounded-lg shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-300 transform hover:scale-105">
+                Send Request
+            </button>
+        </div>
+        
+        <!-- Response Section -->
+        <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Response</h2>
+            <div class="space-y-4">
+                <div class="rounded-lg p-3 bg-gray-100 border border-gray-200">
+                    <h3 class="font-medium text-gray-700">Status: <span id="response-status" class="font-normal text-gray-900">N/A</span></h3>
+                </div>
+                
+                <div class="rounded-lg p-3 bg-gray-100 border border-gray-200">
+                    <h3 class="font-medium text-gray-700">Headers</h3>
+                    <pre id="response-headers" class="font-mono text-sm text-gray-800 whitespace-pre-wrap"></pre>
+                </div>
+                
+                <div class="rounded-lg p-3 bg-gray-100 border border-gray-200">
+                    <h3 class="font-medium text-gray-700">Body</h3>
+                    <pre id="response-body" class="font-mono text-sm text-gray-800 whitespace-pre-wrap"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const urlInput = document.getElementById('url');
+        const methodSelect = document.getElementById('method');
+        const headersTextarea = document.getElementById('headers');
+        const bodyTextarea = document.getElementById('body');
+        const sendButton = document.getElementById('send-button');
+
+        const responseStatusEl = document.getElementById('response-status');
+        const responseHeadersEl = document.getElementById('response-headers');
+        const responseBodyEl = document.getElementById('response-body');
+
+        // Function to make the API call
+        const sendRequest = async () => {
+            const url = urlInput.value;
+            const method = methodSelect.value;
+            let headers = {};
+            let body = null;
+
+            // Clear previous results
+            responseStatusEl.textContent = 'Sending...';
+            responseHeadersEl.textContent = '';
+            responseBodyEl.textContent = '';
+
+            try {
+                // Parse headers
+                if (headersTextarea.value) {
+                    headers = JSON.parse(headersTextarea.value);
+                }
+
+                // Handle request body for non-GET/DELETE methods
+                if (['POST', 'PUT'].includes(method) && bodyTextarea.value) {
+                    body = JSON.stringify(JSON.parse(bodyTextarea.value));
+                    if (!headers['Content-Type']) {
+                        headers['Content-Type'] = 'application/json';
+                    }
+                }
+
+                const options = {
+                    method,
+                    headers,
+                    body,
+                };
+
+                const response = await fetch(url, options);
+                
+                // Get and display status
+                responseStatusEl.textContent = `${response.status} ${response.statusText}`;
+
+                // Get and display headers
+                let headersString = '';
+                for (const [key, value] of response.headers.entries()) {
+                    headersString += `${key}: ${value}\n`;
+                }
+                responseHeadersEl.textContent = headersString;
+
+                // Get and display body (handle JSON or text)
+                const contentType = response.headers.get('content-type');
+                let responseData;
+                if (contentType && contentType.includes('application/json')) {
+                    const json = await response.json();
+                    responseData = JSON.stringify(json, null, 2);
+                } else {
+                    responseData = await response.text();
+                }
+                responseBodyEl.textContent = responseData;
+
+            } catch (error) {
+                responseStatusEl.textContent = 'Error';
+                responseBodyEl.textContent = `An error occurred: ${error.message}`;
+            }
+        };
+
+        sendButton.addEventListener('click', sendRequest);
+
+        // Optional: Pre-populate with a demo URL
+        window.addEventListener('load', () => {
+            urlInput.value = 'https://jsonplaceholder.typicode.com/posts/1';
+            headersTextarea.value = '{}';
+            bodyTextarea.value = '{}';
+        });
+    </script>
+</body>
+</html>
